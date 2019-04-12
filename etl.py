@@ -2,31 +2,36 @@ import os
 import glob
 import psycopg2
 import pandas as pd
+import datetime
 from sql_queries import *
 
 
 def process_song_file(cur, filepath):
     """Takes connection cursor and filepath (songs), insert song,
     artists data to the database corresponding tables."""
+    
     # open song file
     df = pd.read_json(filepath, lines='True')
 
     # insert song record
-    song_data = df[['song_id', 'title', 'artist_id', 'year', 'duration']]
+    song_data = df[['song_id', 'title', 'artist_id',
+                    'year', 'duration']]
     song_data = song_data.values[0]
     song_data = song_data.tolist()
     cur.execute(song_table_insert, song_data)
     
     # insert artist record
-    artist_data = df[['artist_id', 'artist_name', 'artist_location',
-                      'artist_latitude', 'artist_longitude']]
+    artist_data = df[['artist_id', 'artist_name',
+                      'artist_location','artist_latitude',
+                      'artist_longitude']]
     artist_data = artist_data.values[0].tolist()
     cur.execute(artist_table_insert, artist_data)
 
 
 def process_log_file(cur, filepath):
-    """Takes connection cursor,  filepath (logs) and insert times,
-    users, songplays records into the database corresponding tables."""
+    """Takes connection cursor,  filepath (logs) 
+    and insert times, users, songplays records 
+    into the database corresponding tables."""
     
     # open log file
     df = pd.read_json(filepath, lines='True')
@@ -38,10 +43,10 @@ def process_log_file(cur, filepath):
     t = pd.to_datetime(df['ts'], unit='ms')
     
     # insert time data records
-    time_data = [t, t.dt.hour, t.dt.day, t.dt.week, t.dt.month, 
-                 t.dt.year, t.dt.weekday]
-    column_labels = ['timestamp', 'hour', 'day', 'week', 'month',
-                     'year', 'weekday']
+    time_data = [t, t.dt.hour, t.dt.day, t.dt.week, 
+                 t.dt.month, t.dt.year, t.dt.weekday]
+    column_labels = ['timestamp', 'hour', 'day', 'week', 
+                     'month', 'year', 'weekday']
     
     dic = dict(zip(column_labels, time_data))
     time_df = pd.DataFrame.from_dict(dic)
@@ -50,7 +55,8 @@ def process_log_file(cur, filepath):
         cur.execute(time_table_insert, list(row))
 
     # load user table
-    user_df = df[['userId', 'firstName', 'lastName', 'gender', 'level']]
+    user_df = df[['userId', 'firstName', 'lastName', 'gender',
+                  'level']]
 
     # insert user records
     for i, row in user_df.iterrows():
@@ -69,7 +75,7 @@ def process_log_file(cur, filepath):
             songid, artistid = None, None
 
         # insert songplay record
-        songplay_data = (index, row.ts, row.userId, row.level,
+        songplay_data = (datetime.datetime.fromtimestamp(row.ts / 1e3), row.userId, row.level,
                          songid, artistid, row.sessionId,
                          row.location, row.userAgent)
         cur.execute(songplay_table_insert, songplay_data)
@@ -81,8 +87,8 @@ def process_data(cur, conn, filepath, func):
     conn: Database connection.
     filepath: The requiered data filepath to process
     func: The function which will apply on this file
-    
-    And loop through all files, process them and insert into the database."""
+    And loop through all files, process them 
+    and insert into the database."""
     
     # get all files matching extension from directory
     all_files = []
@@ -107,8 +113,10 @@ def main():
     user=student password=student")
     cur = conn.cursor()
 
-    process_data(cur, conn, filepath='data/song_data', func=process_song_file)
-    process_data(cur, conn, filepath='data/log_data', func=process_log_file)
+    process_data(cur, conn, filepath='data/song_data',
+                 func=process_song_file)
+    process_data(cur, conn, filepath='data/log_data',
+                 func=process_log_file)
 
     conn.close()
 
